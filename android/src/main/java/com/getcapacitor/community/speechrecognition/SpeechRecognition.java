@@ -11,6 +11,7 @@ import android.speech.SpeechRecognizer;
 import androidx.annotation.Nullable;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
@@ -22,6 +23,7 @@ import com.orhanobut.logger.Logger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 import org.json.JSONArray;
 
@@ -92,7 +94,7 @@ public class SpeechRecognition extends Plugin implements Constants {
       return;
     }
 
-    if (!hasAudioPermissions(RECORD_AUDIO_PERMISSION)) {
+    if (!hasAudioPermissions()) {
       call.reject(MISSING_PERMISSION);
       return;
     }
@@ -153,13 +155,13 @@ public class SpeechRecognition extends Plugin implements Constants {
   public void hasPermission(PluginCall call) {
     call.resolve(
       new JSObject()
-      .put("permission", hasAudioPermissions(RECORD_AUDIO_PERMISSION))
+      .put("permission", hasAudioPermissions())
     );
   }
 
   @PluginMethod
   public void requestPermission(PluginCall call) {
-    if (!hasAudioPermissions(RECORD_AUDIO_PERMISSION)) {
+    if (!hasAudioPermissions()) {
       if (Build.VERSION.SDK_INT > Build.VERSION_CODES.M) {
         bridge
           .getActivity()
@@ -167,11 +169,9 @@ public class SpeechRecognition extends Plugin implements Constants {
             new String[] { RECORD_AUDIO_PERMISSION },
             REQUEST_CODE_PERMISSION
           );
-        call.resolve();
-      } else {
-        call.resolve();
       }
     }
+    call.resolve();
   }
 
   @Override
@@ -213,12 +213,14 @@ public class SpeechRecognition extends Plugin implements Constants {
     return SpeechRecognizer.isRecognitionAvailable(bridge.getContext());
   }
 
-  private boolean hasAudioPermissions(String type) {
+  private boolean hasAudioPermissions() {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
       return true;
     }
 
-    return hasPermission(type);
+//    PermissionState currentState = getPermissionState(type);
+    Map<String, PermissionState> states = getPermissionStates();
+    return states.get(RECORD_AUDIO_PERMISSION) == PermissionState.GRANTED || states.get("record_audio") == PermissionState.GRANTED;
   }
 
   private void listening(boolean value) {
@@ -386,7 +388,7 @@ public class SpeechRecognition extends Plugin implements Constants {
         ) {
           previousPartialResults = matchesJSON;
           JSObject ret = new JSObject();
-          ret.put("value", previousPartialResults);
+          ret.put("matches", previousPartialResults);
           notifyListeners("partialResults", ret);
         }
       } catch (Exception ex) {}
