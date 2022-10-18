@@ -153,10 +153,7 @@ public class SpeechRecognition extends Plugin implements Constants {
 
   @PluginMethod
   public void hasPermission(PluginCall call) {
-    call.resolve(
-      new JSObject()
-      .put("permission", hasAudioPermissions())
-    );
+    call.resolve(new JSObject().put("permission", hasAudioPermissions()));
   }
 
   @PluginMethod
@@ -218,9 +215,12 @@ public class SpeechRecognition extends Plugin implements Constants {
       return true;
     }
 
-//    PermissionState currentState = getPermissionState(type);
+    //    PermissionState currentState = getPermissionState(type);
     Map<String, PermissionState> states = getPermissionStates();
-    return states.get(RECORD_AUDIO_PERMISSION) == PermissionState.GRANTED || states.get("record_audio") == PermissionState.GRANTED;
+    return (
+      states.get(RECORD_AUDIO_PERMISSION) == PermissionState.GRANTED ||
+      states.get("record_audio") == PermissionState.GRANTED
+    );
   }
 
   private void listening(boolean value) {
@@ -280,7 +280,7 @@ public class SpeechRecognition extends Plugin implements Constants {
               speechRecognizer.setRecognitionListener(listener);
               speechRecognizer.startListening(intent);
               SpeechRecognition.this.listening(true);
-              if(partialResults) {
+              if (partialResults) {
                 call.resolve();
               }
             } catch (Exception ex) {
@@ -359,10 +359,26 @@ public class SpeechRecognition extends Plugin implements Constants {
       try {
         JSArray jsArray = new JSArray(matches);
 
-        if (this.call != null && !this.partialResults) {
-          this.call.resolve(
-              new JSObject().put("status", "success").put("matches", jsArray)
-            );
+        if (this.call != null) {
+          if (this.partialResults) {
+            try {
+              JSArray matchesJSON = jsArray;
+              if (
+                matches != null &&
+                matches.size() > 0 &&
+                !previousPartialResults.equals(matchesJSON)
+              ) {
+                previousPartialResults = matchesJSON;
+                JSObject ret = new JSObject();
+                ret.put("matches", previousPartialResults);
+                notifyListeners("partialResults", ret);
+              }
+            } catch (Exception ex) {}
+          } else {
+            this.call.resolve(
+                new JSObject().put("status", "success").put("matches", jsArray)
+              );
+          }
         }
       } catch (Exception ex) {
         this.call.resolve(
